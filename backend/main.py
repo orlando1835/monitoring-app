@@ -4,6 +4,7 @@ import time
 from typing import List, Dict, Any, Optional
 import enum
 import json
+import os
 
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, status
@@ -27,11 +28,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 MONITORING_INTERVAL_SECONDS = 60
 
 # --- CONFIGURACIÓN DE BASE DE DATOS (MySQL) ---
-DB_USER = "root"
-DB_PASSWORD = "Certi123"
-DB_HOST = "127.0.0.1"
+DB_USER = "sql10787973"
+DB_PASSWORD = "h7dZMSyxxp"
+DB_HOST = " sql10.freesqldatabase.com"
 DB_PORT = "3306"
-DB_NAME = "monitoring_db"
+DB_NAME = "sql10787973"
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
