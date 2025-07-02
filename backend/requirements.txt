@@ -1,0 +1,23 @@
+# Framework para la API
+fastapi==0.111.0
+
+# Servidor ASGI para FastAPI
+uvicorn[standard]==0.29.0
+
+# ORM para interactuar con la base de datos
+sqlalchemy==2.0.31
+
+# Conector para MySQL
+PyMySQL==1.1.0
+
+# Cliente HTTP asíncrono
+httpx==0.27.0
+
+# Para el manejo de tokens JWT (Autenticación) - Versión moderna
+python-jose[cryptography]==3.3.0
+
+# Para hashear contraseñas
+passlib[bcrypt]==1.7.4
+
+# Dependencia de FastAPI para formularios
+python-multipart==0.0.9

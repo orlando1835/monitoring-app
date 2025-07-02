@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LumenAPI - Monitor de Servicios</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { background-color: #f1f5f9; font-family: 'Inter', sans-serif; }
+        @import url('https://rsms.me/inter/inter.css');
+        [title]:hover { cursor: help; }
+        .modal { transition: opacity 0.25s ease; }
+        .login-bg-modern {
+            background-color: #8EC5FC;
+            background-image: linear-gradient(62deg, #8EC5FC 0%, #E0C3FC 100%);
+        }
+        .nav-active {
+            background-color: rgb(255 255 255 / 0.15);
+            color: white;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- VISTA DE INICIO DE SESIÓN -->
+    <div id="login-view" class="flex items-center justify-center min-h-screen login-bg-modern">
+        <div class="w-full max-w-sm p-8 space-y-6 bg-white/30 backdrop-blur-xl rounded-2xl shadow-2xl">
+            <div class="text-center">
+                <div class="flex justify-center mb-4"><div class="w-24 h-24 bg-white/50 rounded-full flex items-center justify-center"><span data-lucide="aperture" class="w-12 h-12 text-gray-800"></span></div></div>
+                <h2 class="text-3xl font-bold text-gray-900">LumenAPI</h2>
+                <p class="mt-2 text-sm text-gray-800">Inicia sesión para monitorear los servicios</p>
+            </div>
+            <form id="login-form" class="space-y-6">
+                <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-3"><span data-lucide="user" class="w-5 h-5 text-gray-500"></span></span><input id="username" name="username" type="text" required class="w-full pl-10 pr-3 py-2 border border-gray-300 bg-white/70 rounded-md placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent sm:text-sm" placeholder="Nombre de usuario"></div>
+                <div class="relative"><span class="absolute inset-y-0 left-0 flex items-center pl-3"><span data-lucide="lock" class="w-5 h-5 text-gray-500"></span></span><input id="password" name="password" type="password" required class="w-full pl-10 pr-3 py-2 border border-gray-300 bg-white/70 rounded-md placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent sm:text-sm" placeholder="Contraseña"></div>
+                <p id="login-error" class="text-sm text-red-900 font-semibold h-4"></p>
+                <div><button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-lg">LOGIN</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- VISTA DEL DASHBOARD -->
+    <div id="dashboard-view" class="hidden flex h-screen w-full">
+        <aside class="w-64 bg-gradient-to-b from-indigo-700 to-purple-800 text-white flex flex-col flex-shrink-0">
+            <div class="h-16 flex items-center justify-center text-xl font-bold border-b border-purple-900/50">
+                <span data-lucide="aperture" class="w-7 h-7 mr-2 text-sky-300"></span>
+                <span>LumenAPI</span>
+            </div>
+            <nav id="main-nav" class="flex-1 px-4 py-4 space-y-2">
+                <a href="#dashboard" class="nav-link flex items-center px-4 py-2 rounded-md transition-colors duration-200"><span data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></span> Dashboard</a>
+                <a href="#manage-services" id="admin-services-link" class="nav-link hidden flex items-center px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-md transition-colors duration-200"><span data-lucide="server" class="w-5 h-5 mr-3"></span> Gestionar Servicios</a>
+                <a href="#manage-users" id="admin-users-link" class="nav-link hidden flex items-center px-4 py-2 text-gray-300 hover:bg-white/10 hover:text-white rounded-md transition-colors duration-200"><span data-lucide="users" class="w-5 h-5 mr-3"></span> Administrar Usuarios</a>
+            </nav>
+            <div class="px-4 py-4 border-t border-purple-900/50">
+                <p class="text-sm text-gray-400">Usuario: <span id="current-username" class="font-semibold text-gray-200"></span></p>
+                <p class="text-xs text-gray-500">Rol: <span id="current-user-role" class="text-gray-400"></span></p>
+                <button id="logout-btn" class="w-full mt-4 flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-md transition-colors duration-200">
+                    <span data-lucide="log-out" class="w-4 h-4 mr-2"></span>Cerrar Sesión
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-6 lg:p-10 overflow-y-auto">
+            <!-- VISTA: DASHBOARD PRINCIPAL -->
+            <div id="view-dashboard" class="view-content">
+                <h1 class="text-3xl font-bold text-gray-800">Dashboard de Monitoreo</h1>
+                <p class="text-gray-600 mb-8">Estado de los servicios y generación de informes.</p>
+                
+                <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-4">Generar Informe Personalizado</h2>
+                    <form id="report-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label for="service-select" class="block text-sm font-medium text-gray-700">Servicio</label>
+                            <select id="service-select" name="service" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                <option value="">Todos los servicios</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="start-date" class="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
+                            <input type="date" id="start-date" name="start_date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <div>
+                            <label for="end-date" class="block text-sm font-medium text-gray-700">Fecha de Fin</label>
+                            <input type="date" id="end-date" name="end_date" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium hover:from-purple-700 hover:to-indigo-700 flex items-center justify-center">
+                            <span data-lucide="external-link" class="w-5 h-5 mr-2"></span>
+                            Generar en nueva pestaña
+                        </button>
+                    </form>
+                </div>
+                
+                <h2 class="text-2xl font-bold text-gray-800 mt-10 mb-4">Resumen General (Últimas 24h)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg flex items-center"><div class="p-3 bg-green-100 rounded-full mr-4"><span data-lucide="trending-up" class="w-6 h-6 text-green-600"></span></div><div><p class="text-sm text-gray-500">Disponibilidad</p><p id="stat-availability" class="text-2xl font-bold text-gray-800">--%</p></div></div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg flex items-center"><div class="p-3 bg-blue-100 rounded-full mr-4"><span data-lucide="timer" class="w-6 h-6 text-blue-600"></span></div><div><p class="text-sm text-gray-500">T. Respuesta Promedio</p><p id="stat-response-time" class="text-2xl font-bold text-gray-800">-- ms</p></div></div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg flex items-center"><div class="p-3 bg-red-100 rounded-full mr-4"><span data-lucide="alert-triangle" class="w-6 h-6 text-red-600"></span></div><div><p class="text-sm text-gray-500">Fallos Totales</p><p id="stat-total-failures" class="text-2xl font-bold text-gray-800">--</p></div></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-lg shadow-lg"><h2 class="text-lg font-semibold text-gray-700 mb-4">Fallos por Servicio</h2><canvas id="failuresChart"></canvas></div>
+                    <div class="bg-white p-6 rounded-lg shadow-lg"><h2 class="text-lg font-semibold text-gray-700 mb-4">Tiempo de Respuesta Promedio</h2><canvas id="responseTimeChart"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-lg mb-8"><h2 class="text-lg font-semibold text-gray-700 mb-4">Estado Actual de Servicios</h2><div id="status-panel" class="space-y-4"><p class="text-gray-500">Cargando datos...</p></div></div>
+            </div>
+
+            <!-- VISTA: GESTIONAR SERVICIOS -->
+            <div id="view-manage-services" class="view-content hidden">
+                <h1 class="text-3xl font-bold text-gray-800">Gestionar Servicios</h1>
+                <p class="text-gray-600 mb-8">Añade, edita o elimina los servicios a monitorear.</p>
+                <button id="add-service-btn" class="mb-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-2 px-4 rounded-md shadow-sm hover:from-purple-700 hover:to-indigo-700 flex items-center"><span data-lucide="plus" class="w-5 h-5 mr-2"></span>Añadir Nuevo Servicio</button>
+                <div id="services-list" class="space-y-4"></div>
+            </div>
+
+            <!-- VISTA: GESTIONAR USUARIOS -->
+            <div id="view-manage-users" class="view-content hidden">
+                <h1 class="text-3xl font-bold text-gray-800">Administrar Usuarios</h1>
+                <p class="text-gray-600 mb-8">Crea nuevos usuarios para el sistema.</p>
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                     <form id="create-user-form">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Crear Nuevo Usuario</h3>
+                        <div class="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
+                            <div><label for="new-username" class="block text-sm font-medium text-gray-700">Nombre de Usuario</label><input id="new-username" type="text" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div><label for="new-password" class="block text-sm font-medium text-gray-700">Contraseña</label><input id="new-password" type="password" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></div>
+                            <div class="sm:col-span-2"><label for="new-role" class="block text-sm font-medium text-gray-700">Rol</label><select id="new-role" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"><option value="consulta">Consulta</option><option value="admin">Admin</option></select></div>
+                        </div>
+                        <p id="create-user-feedback" class="text-sm mt-4 h-5"></p>
+                        <div class="mt-4"><button type="submit" class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-base font-medium rounded-md shadow-sm hover:from-green-600 hover:to-emerald-700">Crear Usuario</button></div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Modal para Añadir/Editar Servicio -->
+            <div id="service-modal" class="modal hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+                <div class="relative top-10 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+                    <form id="service-form">
+                        <h3 id="service-modal-title" class="text-lg leading-6 font-medium text-gray-900">Añadir Nuevo Servicio</h3>
+                        <input type="hidden" id="service-id">
+                        <div class="mt-4 grid grid-cols-1 gap-4">
+                            <div><label for="service-name" class="block text-sm">Nombre</label><input type="text" id="service-name" required class="mt-1 block w-full border-gray-300 rounded-md"></div>
+                            <div><label for="service-url" class="block text-sm">URL</label><input type="url" id="service-url" required class="mt-1 block w-full border-gray-300 rounded-md"></div>
+                            <div><label for="service-method" class="block text-sm">Método</label><select id="service-method" class="mt-1 block w-full border-gray-300 rounded-md"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
+                            <div><label for="service-payload" class="block text-sm">Payload (JSON)</label><textarea id="service-payload" rows="3" class="mt-1 block w-full border-gray-300 rounded-md font-mono text-xs" placeholder='{ "key": "value" }'></textarea></div>
+                            <div><label for="service-headers" class="block text-sm">Cabeceras (JSON)</label><textarea id="service-headers" rows="3" class="mt-1 block w-full border-gray-300 rounded-md font-mono text-xs" placeholder='{ "Content-Type": "application/json" }'></textarea></div>
+                            <div><label for="service-auth-type" class="block text-sm">Tipo de Autenticación</label><select id="service-auth-type" class="mt-1 block w-full border-gray-300 rounded-md"><option value="">Ninguna</option><option value="basic">Basic</option></select></div>
+                            <div id="auth-fields" class="hidden grid grid-cols-2 gap-4">
+                                <div><label for="service-auth-username" class="block text-sm">Usuario</label><input type="text" id="service-auth-username" class="mt-1 block w-full border-gray-300 rounded-md"></div>
+                                <div><label for="service-auth-password" class="block text-sm">Contraseña</label><input type="text" id="service-auth-password" class="mt-1 block w-full border-gray-300 rounded-md"></div>
+                            </div>
+                            <div class="flex items-center"><input id="service-ssl-verify" type="checkbox" class="h-4 w-4 rounded"><label for="service-ssl-verify" class="ml-2 block text-sm">Verificar SSL</label></div>
+                        </div>
+                        <p id="service-form-feedback" class="text-sm mt-4 h-5 text-red-600"></p>
+                        <div class="mt-6 flex justify-end space-x-4">
+                            <button type="button" id="close-service-modal-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Cancelar</button>
+                            <button type="submit" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-md hover:from-purple-700 hover:to-indigo-700">Guardar Servicio</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_ROOT = 'http://127.0.0.1:8000';
+        const API_BASE_URL = `${API_ROOT}/api`;
+        let failuresChartInstance, responseTimeChartInstance;
+        
+        // --- LÓGICA DE NAVEGACIÓN Y VISTAS ---
+        const views = {
+            dashboard: document.getElementById('view-dashboard'),
+            'manage-services': document.getElementById('view-manage-services'),
+            'manage-users': document.getElementById('view-manage-users')
+        };
+        const navLinks = document.querySelectorAll('.nav-link');
+
+        function navigateTo(hash) {
+            const viewId = hash.substring(1); 
+            Object.values(views).forEach(view => view.classList.add('hidden'));
+            if (views[viewId]) {
+                views[viewId].classList.remove('hidden');
+            } else {
+                views.dashboard.classList.remove('hidden'); // Vista por defecto
+            }
+            navLinks.forEach(link => {
+                link.classList.remove('nav-active');
+                if(link.getAttribute('href') === hash || (hash === '' && link.getAttribute('href') === '#dashboard')) {
+                    link.classList.add('nav-active');
+                }
+            });
+             if (!hash || hash ==='#dashboard') {
+                navLinks[0].classList.add('nav-active');
+            }
+        }
+        
+        window.addEventListener('hashchange', () => navigateTo(window.location.hash));
+        navLinks.forEach(link => link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const newHash = e.currentTarget.getAttribute('href');
+            if(window.location.hash !== newHash) window.location.hash = newHash;
+        }));
+
+        // --- LÓGICA DE AUTENTICACIÓN ---
+        const loginView = document.getElementById('login-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        function showDashboard() {
+            loginView.classList.add('hidden');
+            loginView.classList.remove('flex');
+            dashboardView.classList.remove('hidden');
+            dashboardView.classList.add('flex');
+            initializeDashboard();
+        }
+
+        function showLogin() {
+            loginView.classList.remove('hidden');
+            loginView.classList.add('flex');
+            dashboardView.classList.add('hidden');
+            dashboardView.classList.remove('flex');
+            localStorage.removeItem('accessToken');
+        }
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.textContent = '';
+            const formData = new URLSearchParams();
+            formData.append('username', loginForm.username.value);
+            formData.append('password', loginForm.password.value);
+            try {
+                const response = await fetch(`${API_ROOT}/token`, { method: 'POST', body: formData });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Error al iniciar sesión');
+                }
+                const data = await response.json();
+                localStorage.setItem('accessToken', data.access_token);
+                showDashboard();
+            } catch (error) {
+                loginError.textContent = error.message;
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => { showLogin(); });
+
+        async function initializeDashboard() {
+            lucide.createIcons();
+            const token = localStorage.getItem('accessToken');
+            if (!token) { showLogin(); return; }
+            try {
+                const userResponse = await fetchWithAuth(`${API_BASE_URL}/users/me`);
+                if (!userResponse.ok) throw new Error('Session expired');
+                const user = await userResponse.json();
+                document.getElementById('current-username').textContent = user.username;
+                document.getElementById('current-user-role').textContent = user.role;
+                if (user.role === 'admin') {
+                    document.getElementById('admin-services-link').classList.remove('hidden');
+                    document.getElementById('admin-users-link').classList.remove('hidden');
+                } else {
+                    document.getElementById('admin-services-link').classList.add('hidden');
+                    document.getElementById('admin-users-link').classList.add('hidden');
+                }
+                navigateTo(window.location.hash || '#dashboard');
+                fetchDashboardData();
+                populateServiceSelect();
+                loadServices(); 
+            } catch (error) {
+                console.error("Auth error:", error);
+                showLogin();
+            }
+        }
+
+        async function fetchWithAuth(url, options = {}) {
+            const token = localStorage.getItem('accessToken');
+            const headers = { 'Authorization': `Bearer ${token}`, ...options.headers };
+            return fetch(url, { ...options, headers });
+        }
+
+        // --- LÓGICA DE GESTIÓN DE SERVICIOS (CRUD) ---
+        const servicesList = document.getElementById('services-list');
+        const serviceModal = document.getElementById('service-modal');
+        const serviceForm = document.getElementById('service-form');
+        
+        document.getElementById('add-service-btn').addEventListener('click', () => openServiceModal());
+        document.getElementById('close-service-modal-btn').addEventListener('click', () => serviceModal.classList.add('hidden'));
+        document.getElementById('service-auth-type').addEventListener('change', (e) => {
+            document.getElementById('auth-fields').classList.toggle('hidden', e.target.value !== 'basic');
+        });
+
+        function openServiceModal(service = null) {
+            serviceForm.reset();
+            document.getElementById('service-form-feedback').textContent = '';
+            document.getElementById('service-id').value = service ? service.id : '';
+            document.getElementById('service-modal-title').textContent = service ? 'Editar Servicio' : 'Añadir Nuevo Servicio';
+            if (service) {
+                document.getElementById('service-name').value = service.name;
+                document.getElementById('service-url').value = service.url;
+                document.getElementById('service-method').value = service.method;
+                document.getElementById('service-payload').value = service.payload || '';
+                document.getElementById('service-headers').value = service.headers || '';
+                document.getElementById('service-auth-type').value = service.auth_type || '';
+                document.getElementById('service-auth-username').value = service.auth_username || '';
+                document.getElementById('service-auth-password').value = service.auth_password || '';
+                document.getElementById('service-ssl-verify').checked = service.ssl_verify;
+            } else {
+                 document.getElementById('service-ssl-verify').checked = true;
+            }
+            document.getElementById('auth-fields').classList.toggle('hidden', document.getElementById('service-auth-type').value !== 'basic');
+            serviceModal.classList.remove('hidden');
+        }
+
+        async function loadServices() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/services`);
+                if (!response.ok) throw new Error('Failed to load services');
+                const services = await response.json();
+                servicesList.innerHTML = '';
+                if(services.length === 0) {
+                    servicesList.innerHTML = '<p class="text-gray-500">No hay servicios configurados.</p>';
+                    return;
+                }
+                services.forEach(service => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-white p-4 rounded-lg shadow-md flex justify-between items-center';
+                    card.innerHTML = `<div><p class="font-bold text-gray-800">${service.name}</p><p class="text-sm text-gray-500">${service.method} - ${service.url}</p></div><div class="space-x-2"><button class="edit-service-btn p-2 text-blue-600 hover:bg-blue-100 rounded-full"><span data-lucide="edit"></span></button><button class="delete-service-btn p-2 text-red-600 hover:bg-red-100 rounded-full"><span data-lucide="trash-2"></span></button></div>`;
+                    card.querySelector('.edit-service-btn').addEventListener('click', () => openServiceModal(service));
+                    card.querySelector('.delete-service-btn').addEventListener('click', () => deleteService(service.id, service.name));
+                    servicesList.appendChild(card);
+                });
+                lucide.createIcons();
+            } catch (error) {
+                servicesList.innerHTML = `<p class="text-red-500">${error.message}</p>`;
+            }
+        }
+
+        serviceForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const feedbackEl = document.getElementById('service-form-feedback');
+            feedbackEl.textContent = '';
+            const serviceId = document.getElementById('service-id').value;
+            const serviceData = {
+                name: document.getElementById('service-name').value, url: document.getElementById('service-url').value, method: document.getElementById('service-method').value,
+                payload: document.getElementById('service-payload').value || null, headers: document.getElementById('service-headers').value || null,
+                auth_type: document.getElementById('service-auth-type').value || null, auth_username: document.getElementById('service-auth-username').value || null,
+                auth_password: document.getElementById('service-auth-password').value || null, ssl_verify: document.getElementById('service-ssl-verify').checked,
+            };
+            const url = serviceId ? `${API_BASE_URL}/services/${serviceId}` : `${API_BASE_URL}/services`;
+            const method = serviceId ? 'PUT' : 'POST';
+            try {
+                const response = await fetchWithAuth(url, { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(serviceData) });
+                if (!response.ok) {
+                    const err = await response.json();
+                    const errorMsg = Array.isArray(err.detail) ? err.detail.map(d => d.msg).join(', ') : err.detail;
+                    throw new Error(errorMsg || 'Error al guardar el servicio');
+                }
+                serviceModal.classList.add('hidden');
+                loadServices();
+                populateServiceSelect();
+            } catch(error) {
+                feedbackEl.textContent = error.message;
+            }
+        });
+
+        async function deleteService(id, name) {
+            if (!confirm(`¿Estás seguro de que quieres eliminar el servicio "${name}"?`)) return;
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/services/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('No se pudo eliminar el servicio');
+                loadServices();
+                populateServiceSelect();
+            } catch(error) {
+                alert(error.message);
+            }
+        }
+
+        // --- LÓGICA DEL DASHBOARD PRINCIPAL ---
+        async function fetchDashboardData() {
+            try {
+                const [statusRes, statsRes] = await Promise.all([ fetchWithAuth(`${API_BASE_URL}/status`), fetchWithAuth(`${API_BASE_URL}/stats`) ]);
+                if (!statusRes.ok || !statsRes.ok) { throw new Error('Error al conectar con la API.'); }
+                const [status, stats] = await Promise.all([ statusRes.json(), statsRes.json() ]);
+                renderStatusPanel(status);
+                updateStatsCards(stats);
+                renderCharts(stats);
+            } catch (error) {
+                console.error('Error al obtener los datos del dashboard:', error);
+                document.getElementById('view-dashboard').innerHTML = `<p class="text-red-500 font-semibold">${error.message}</p>`;
+            } finally {
+                if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+            }
+        }
+        
+        function renderStatusPanel(services) {
+            const panel = document.getElementById('status-panel');
+            panel.innerHTML = '';
+            if (!services || services.length === 0) { panel.innerHTML = '<p class="text-gray-500">No hay servicios para mostrar. Cree uno en la sección "Gestionar Servicios".</p>'; return; }
+            services.forEach(service => {
+                const isSuccess = service.status === 'Éxito'; const isPending = service.status === 'Pendiente';
+                let bgColor = isSuccess ? 'bg-green-100' : (isPending ? 'bg-yellow-100' : 'bg-red-100');
+                let textColor = isSuccess ? 'text-green-800' : (isPending ? 'text-yellow-800' : 'text-red-800');
+                let icon = isSuccess ? 'check-circle' : (isPending ? 'clock' : 'x-circle');
+                let statusText = isSuccess ? 'Operacional' : (isPending ? 'Pendiente' : 'Fallo');
+                const hasError = !isSuccess && !isPending;
+                let tooltipTitle = '';
+                if (hasError) {
+                    const sanitizedMessage = String(service.error_message || 'No hay detalles disponibles.').replace(/"/g, '&quot;').replace(/\n/g, ' ');
+                    tooltipTitle = `Detalle del error: ${sanitizedMessage}`;
+                }
+                const lastChecked = service.timestamp ? new Date(service.timestamp).toLocaleString() : 'N/A';
+                panel.innerHTML += `<div class="p-4 rounded-lg flex items-center justify-between ${bgColor}" title="${tooltipTitle}"><div><p class="font-bold ${textColor}">${service.service_name}</p><p class="text-sm ${textColor.replace('800', '600')}">${service.url}</p></div><div class="text-right"><div class="flex items-center font-semibold ${textColor}"><span data-lucide="${icon}" class="w-5 h-5 mr-2"></span><span>${statusText}</span></div><p class="text-xs ${textColor.replace('800', '700')}">Última revisión: ${lastChecked}</p></div></div>`;
+            });
+            lucide.createIcons();
+        }
+
+        function updateStatsCards(stats) {
+            document.getElementById('stat-availability').textContent = `${stats.overall_availability}%`;
+            document.getElementById('stat-response-time').textContent = `${stats.average_response_time} ms`;
+            document.getElementById('stat-total-failures').textContent = stats.total_failures;
+        }
+        
+        function renderCharts(stats) {
+            const chartOptions = { responsive: true, scales: { y: { beginAtZero: true } } };
+            const failuresCtx = document.getElementById('failuresChart').getContext('2d');
+            if (failuresChartInstance) failuresChartInstance.destroy();
+            failuresChartInstance = new Chart(failuresCtx, { type: 'bar', data: { labels: stats.failures_by_service.map(i => i.service), datasets: [{ label: 'Número de Fallos', data: stats.failures_by_service.map(i => i.count), backgroundColor: 'rgba(239, 68, 68, 0.6)', borderColor: 'rgba(220, 38, 38, 1)', borderWidth: 1 }] }, options: chartOptions });
+            const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+            if (responseTimeChartInstance) responseTimeChartInstance.destroy();
+            responseTimeChartInstance = new Chart(responseTimeCtx, { type: 'bar', data: { labels: stats.response_time_by_service.map(i => i.service), datasets: [{ label: 'Tiempo Promedio (ms)', data: stats.response_time_by_service.map(i => i.avg_time), backgroundColor: 'rgba(59, 130, 246, 0.6)', borderColor: 'rgba(37, 99, 235, 1)', borderWidth: 1 }] }, options: chartOptions });
+        }
+
+        async function populateServiceSelect() {
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/services`);
+                if (!response.ok) throw new Error('Could not fetch services.');
+                const services = await response.json();
+                const select = document.getElementById('service-select');
+                select.innerHTML = '<option value="">Todos los servicios</option>';
+                services.forEach(service => {
+                    const option = document.createElement('option');
+                    option.value = service.name;
+                    option.textContent = service.name;
+                    select.appendChild(option);
+                });
+            } catch (error) { console.error("Error populating services dropdown:", error); }
+        }
+        
+        function generateReportHTML(data, filters) {
+            const { summary, logs } = data;
+            const tableRows = logs.map(log => `<tr class="${log.status === 'Error' ? 'error-row' : ''}"><td>${log.service_name}</td><td>${log.status}</td><td>${log.status_code || 'N/A'}</td><td>${log.response_time_ms.toFixed(2)}</td><td>${new Date(log.timestamp).toLocaleString()}</td></tr>`).join('');
+            const chartData = {
+                labels: logs.map(l => new Date(l.timestamp).toLocaleTimeString()).reverse(),
+                data: logs.map(l => l.response_time_ms).reverse(),
+                pointColors: logs.map(l => l.status === 'Éxito' ? 'rgba(34, 197, 94, 1)' : 'rgba(239, 68, 68, 1)').reverse(),
+            };
+            return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Informe de Monitoreo</title><script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script><style>body{font-family:sans-serif;margin:2em}table{width:100%;border-collapse:collapse;margin-top:1em}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background-color:#f2f2f2}h1,h2,h3{border-bottom:2px solid #eee;padding-bottom:0.5em}.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1em;margin-bottom:2em}.summary-card{border:1px solid #ddd;border-radius:8px;padding:1em;text-align:center}.error-row{background-color:#ffebee!important}.action-btn{padding:8px 16px;color:white;border:none;border-radius:4px;cursor:pointer;margin-right:10px;}.pdf-btn{background-color:#d32f2f;}@media print{.no-print{display:none}}<\/style></head><body><h1>Informe de Monitoreo</h1><div class="no-print"><button id="download-pdf" class="action-btn pdf-btn">Descargar PDF (Solo Resumen)</button></div><div id="pdf-content"><h2>Resumen del Periodo</h2><div class="summary-grid"><div class="summary-card"><strong>Peticiones</strong><p>${summary.total_requests}</p></div><div class="summary-card"><strong>Disponibilidad</strong><p>${summary.availability}%</p></div><div class="summary-card"><strong>Fallos</strong><p>${summary.failed_requests}</p></div><div class="summary-card"><strong>T. Resp. Promedio</strong><p>${summary.avg_response_time} ms</p></div></div><h2>Filtros Aplicados</h2><p><strong>Servicio:</strong> ${filters.serviceName}</p><p><strong>Fecha de Inicio:</strong> ${filters.startDate}</p><p><strong>Fecha de Fin:</strong> ${filters.endDate}</p><h3>Gráfica de Tiempos de Respuesta</h3><canvas id="report-chart"></canvas></div><h3>Registros Detallados</h3><table><thead><tr><th>Servicio</th><th>Estado</th><th>Cód. HTTP</th><th>T. Respuesta (ms)</th><th>Fecha/Hora (UTC)</th></tr></thead><tbody>${tableRows}</tbody></table><script>const ctx=document.getElementById('report-chart').getContext('2d');new Chart(ctx,{type:'line',data:{labels:${JSON.stringify(chartData.labels)},datasets:[{label:'Tiempo de Respuesta (ms)',data:${JSON.stringify(chartData.data)},borderColor:'rgba(59,130,246,1)',backgroundColor:'rgba(59,130,246,0.1)',fill:true,pointBackgroundColor:${JSON.stringify(chartData.pointColors)},pointRadius:4,tension:0.1}]},options:{responsive:true,animation:{duration:0},scales:{y:{beginAtZero:true}}}});document.getElementById('download-pdf').addEventListener('click',()=>{const{jsPDF}=window.jspdf;const reportElement=document.getElementById('pdf-content');const downloadBtn=document.getElementById('download-pdf');downloadBtn.textContent='Generando...';downloadBtn.disabled=true;html2canvas(reportElement,{scale:2}).then(canvas=>{const imgData=canvas.toDataURL('image/png');const pdf=new jsPDF('p','mm','a4');const pdfWidth=pdf.internal.pageSize.getWidth();const pdfHeight=(canvas.height*pdfWidth)/canvas.width;pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);const serviceName="${filters.serviceName.replace(/[^a-zA-Z0-9]/g,'_')}";const date=new Date().toISOString().split('T')[0];pdf.save(\`informe-resumen-\${serviceName}-\${date}.pdf\`);downloadBtn.textContent='Descargar PDF (Solo Resumen)';downloadBtn.disabled=false})});<\/script></body></html>`;
+        }
+        
+        document.getElementById('report-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const serviceName = document.getElementById('service-select').value;
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            const params = new URLSearchParams({ service_name: serviceName, start_date: startDate, end_date: endDate });
+            const reportWindow = window.open('', '_blank');
+            reportWindow.document.write('<body><h1>Generando informe, por favor espere...</h1></body>');
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/reports/custom?${params.toString()}`);
+                if (!response.ok) throw new Error('Failed to fetch custom report.');
+                const reportData = await response.json();
+                if (!reportData.logs || reportData.logs.length === 0) {
+                    reportWindow.document.body.innerHTML = '<h1>No se encontraron registros con los filtros seleccionados.</h1>';
+                    reportWindow.document.close();
+                    return;
+                }
+                const filters = { serviceName: serviceName || 'Todos', startDate: startDate || 'N/A', endDate: endDate || 'N/A' };
+                const reportHTML = generateReportHTML(reportData, filters);
+                reportWindow.document.open();
+                reportWindow.document.write(reportHTML);
+                reportWindow.document.close();
+            } catch (error) {
+                console.error("Error generating custom report:", error);
+                reportWindow.document.body.innerHTML = `<h1>Error al generar el informe: ${error.message}</h1>`;
+                reportWindow.document.close();
+            }
+        });
+        
+        // --- LÓGICA DE GESTIÓN DE USUARIOS ---
+        document.getElementById('admin-users-link').addEventListener('click', (e) => { e.preventDefault(); });
+        document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const feedbackEl = document.getElementById('create-user-feedback');
+            feedbackEl.textContent = '';
+            const newUser = {
+                username: document.getElementById('new-username').value,
+                password: document.getElementById('new-password').value,
+                role: document.getElementById('new-role').value
+            };
+            try {
+                const response = await fetchWithAuth(`${API_BASE_URL}/users`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newUser)
+                });
+                const data = await response.json();
+                if (!response.ok) { throw new Error(data.detail || 'Error al crear usuario'); }
+                feedbackEl.textContent = `Usuario '${data.username}' creado con éxito.`;
+                feedbackEl.classList.remove('text-red-600');
+                feedbackEl.classList.add('text-green-600');
+                createUserForm.reset();
+            } catch (error) {
+                feedbackEl.textContent = error.message;
+                feedbackEl.classList.remove('text-green-600');
+                feedbackEl.classList.add('text-red-600');
+            }
+        });
+
+        // --- INICIALIZACIÓN DE LA APLICACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const token = localStorage.getItem('accessToken');
+            if (token) {
+                showDashboard();
+            } else {
+                showLogin();
+            }
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

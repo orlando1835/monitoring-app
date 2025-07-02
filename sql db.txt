@@ -1,0 +1,69 @@
+-- Script para la creación de la base de datos y tablas para la aplicación LumenAPI
+-- Compatible con MySQL y MariaDB
+
+-- -----------------------------------------------------
+-- Paso 1: Crear la Base de Datos (si no existe)
+-- -----------------------------------------------------
+-- Se recomienda usar un nombre descriptivo. Si usas un nombre diferente,
+-- recuerda actualizarlo en el archivo `main.py` del backend.
+CREATE DATABASE IF NOT EXISTS `monitoring_db` 
+DEFAULT CHARACTER SET utf8mb4 
+COLLATE utf8mb4_unicode_ci;
+
+-- -----------------------------------------------------
+-- Paso 2: Seleccionar la Base de Datos para usarla
+-- -----------------------------------------------------
+USE `monitoring_db`;
+
+-- -----------------------------------------------------
+-- Tabla `users`: Almacena las credenciales y roles de los usuarios
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `username` VARCHAR(255) NOT NULL,
+  `hashed_password` VARCHAR(255) NOT NULL,
+  `role` ENUM('admin', 'consulta') NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `username_UNIQUE` (`username` ASC) VISIBLE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Tabla `services`: Almacena la configuración de los servicios a monitorear
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `services` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `name` VARCHAR(255) NOT NULL,
+  `url` VARCHAR(1024) NOT NULL,
+  `method` VARCHAR(10) NOT NULL DEFAULT 'GET',
+  `headers` TEXT NULL,
+  `payload` TEXT NULL,
+  `auth_type` VARCHAR(50) NULL,
+  `auth_username` VARCHAR(255) NULL,
+  `auth_password` VARCHAR(255) NULL,
+  `ssl_verify` TINYINT(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `name_UNIQUE` (`name` ASC) VISIBLE)
+ENGINE = InnoDB;
+
+
+-- -----------------------------------------------------
+-- Tabla `logs`: Almacena el historial de cada petición de monitoreo
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `logs` (
+  `id` INT NOT NULL AUTO_INCREMENT,
+  `service_name` VARCHAR(255) NOT NULL,
+  `url` VARCHAR(512) NULL,
+  `timestamp` DATETIME NOT NULL,
+  `response_time_ms` FLOAT NOT NULL,
+  `status_code` INT NULL,
+  `status` VARCHAR(50) NOT NULL,
+  `error_message` VARCHAR(500) NULL,
+  PRIMARY KEY (`id`),
+  INDEX `idx_service_name` (`service_name` ASC) VISIBLE,
+  INDEX `idx_timestamp` (`timestamp` ASC) VISIBLE)
+ENGINE = InnoDB;
+
+-- --- Fin del Script ---
+-- Puedes ejecutar este script completo en tu cliente de MySQL (como MySQL Workbench, DBeaver, o la línea de comandos)
+-- para configurar la base de datos desde cero.
