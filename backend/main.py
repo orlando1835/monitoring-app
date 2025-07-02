@@ -30,7 +30,7 @@ MONITORING_INTERVAL_SECONDS = 60
 # --- CONFIGURACIÓN DE BASE DE DATOS (MySQL) ---
 DB_USER = "sql10787973"
 DB_PASSWORD = "h7dZMSyxxp"
-DB_HOST = " sql10.freesqldatabase.com"
+DB_HOST = "sql10.freesqldatabase.com"
 DB_PORT = "3306"
 DB_NAME = "sql10787973"
 DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
